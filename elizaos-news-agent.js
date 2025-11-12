@@ -32,6 +32,7 @@ class ElizaNewsAgent {
     const timestamp = new Date().toISOString();
     const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
     console.log(`[${timestamp}] ${prefix} ${message}`);
+    // Added logging for deployment tracking
   }
 
   async start() {
@@ -151,7 +152,7 @@ class ElizaNewsAgent {
 
   categorizeContent(text) {
     const lowerText = text.toLowerCase();
-
+    console.log('Categorizing text:', lowerText);
     if (lowerText.includes('breaking') || lowerText.includes('urgent') || lowerText.includes('announcement')) {
       return 'breaking';
     }
@@ -165,7 +166,9 @@ class ElizaNewsAgent {
       return 'tech';
     }
 
-    return 'breaking'; // Default category
+    return 'breaking'; 
+    // Default category
+    console.log('Defaulting to breaking category');
   }
 
   isUrgentNews(text) {
