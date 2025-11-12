@@ -1,0 +1,15 @@
+{
+  "name": "sui-eliza-agent",
+  "version": "1.0.0",
+  "description": "ElizaOS News Agent for Sui Times",
+  "main": "elizaos-news-agent.js",
+  "scripts": {
+    "start": "node elizaos-news-agent.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
