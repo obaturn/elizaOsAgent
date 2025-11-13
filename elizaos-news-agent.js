@@ -282,6 +282,17 @@ if (require.main === module) {
     process.exit(0);
   });
 
+  // Start dummy HTTP server for Render compatibility
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('ElizaOS News Agent is running\n');
+  });
+
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+
   agent.start().catch(error => {
     console.error('Failed to start ElizaOS News Agent:', error);
     process.exit(1);
