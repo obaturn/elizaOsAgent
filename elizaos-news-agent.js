@@ -19,7 +19,7 @@ const NEWS_API_ENDPOINT = `${API_BASE_URL}/api/news/live`;
 
 // Twitter API Configuration (you'll need to provide these)
 const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN;
-const SUI_KEYWORDS = ['sui', 'sui blockchain', 'sui network', 'sui crypto', 'mysten labs'];
+const SUI_KEYWORDS = ['sui', 'sui blockchain', 'sui network', 'sui crypto', 'mysten labs', '"Sui Network"', '"Sui Blockchain"', '"Mysten Labs"', '"Sui mainnet"', '"Sui DeFi"', '"Sui NFT"', 'sui OR mysten OR "sui blockchain"'];
 const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 console.log('🔧 Configuration:');
@@ -68,6 +68,12 @@ class ElizaNewsAgent {
 
       // Check Twitter for Sui news
       await this.checkTwitterNews();
+
+      // NEW: Check CoinGecko for market news
+      await this.checkCoinGeckoNews();
+
+      // NEW: Check NewsAPI for cryptocurrency news
+      await this.checkNewsAPI();
 
       // Check other sources (add more as needed)
       await this.checkAdditionalSources();
@@ -129,11 +135,60 @@ class ElizaNewsAgent {
     // Examples: Sui blog RSS, Discord announcements, etc.
 
     // For now, we'll simulate occasional news from other sources
-    if (Math.random() < 0.1) { // 10% chance every check
+    if (Math.random() < 0.02) { // 2% chance every check
       const mockNews = this.generateMockNews();
       if (mockNews) {
         await this.postNewsToAPI(mockNews);
       }
+    }
+  }
+
+  async checkCoinGeckoNews() {
+    try {
+      const response = await this.makeRequest('https://api.coingecko.com/api/v3/news');
+      const suiNews = response.data.filter(item =>
+        item.title?.toLowerCase().includes('sui') ||
+        item.description?.toLowerCase().includes('sui') ||
+        item.title?.toLowerCase().includes('mysten')
+      );
+
+      for (const item of suiNews.slice(0, 2)) {
+        const newsItem = {
+          title: item.title,
+          category: 'market',
+          source: 'CoinGecko',
+          urgent: item.pinned || false
+        };
+
+        await this.postNewsToAPI(newsItem);
+        this.log(`📈 Posted CoinGecko news: ${item.title}`, 'success');
+      }
+    } catch (error) {
+      this.log(`❌ CoinGecko fetch error: ${error.message}`, 'error');
+    }
+  }
+
+  async checkNewsAPI() {
+    try {
+      const NEWSAPI_KEY = process.env.NEWSAPI_KEY || '49b55a0bb8e741b5918352b20a6c373f';
+      const url = `https://newsapi.org/v2/everything?q=sui+blockchain+OR+mysten+labs&apiKey=${NEWSAPI_KEY}&pageSize=3`;
+      const response = await this.makeRequest(url);
+
+      if (response.articles) {
+        for (const article of response.articles.slice(0, 2)) {
+          const newsItem = {
+            title: article.title,
+            category: 'news',
+            source: article.source?.name || 'NewsAPI',
+            urgent: false
+          };
+
+          await this.postNewsToAPI(newsItem);
+          this.log(`📰 Posted NewsAPI news: ${article.title}`, 'success');
+        }
+      }
+    } catch (error) {
+      this.log(`❌ NewsAPI fetch error: ${error.message}`, 'error');
     }
   }
 
