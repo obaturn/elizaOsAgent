@@ -22,6 +22,11 @@ const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN;
 const SUI_KEYWORDS = ['sui', 'sui blockchain', 'sui network', 'sui crypto', 'mysten labs'];
 const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
+console.log('🔧 Configuration:');
+console.log(`API_BASE_URL: ${API_BASE_URL}`);
+console.log(`NEWS_API_ENDPOINT: ${NEWS_API_ENDPOINT}`);
+console.log(`TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN ? 'Set' : 'Not set'}`);
+
 class ElizaNewsAgent {
   constructor() {
     this.lastCheckedTweets = new Set();
@@ -203,6 +208,7 @@ class ElizaNewsAgent {
 
   async postNewsToAPI(newsItem) {
     try {
+      this.log(`📤 Posting news to ${NEWS_API_ENDPOINT}: ${JSON.stringify(newsItem)}`);
       const response = await this.makeRequest(NEWS_API_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -210,11 +216,12 @@ class ElizaNewsAgent {
         },
         body: JSON.stringify(newsItem)
       });
+      this.log(`📥 API response: ${JSON.stringify(response)}`);
 
       if (response.success) {
         this.log(`✅ Posted news: "${newsItem.title}"`, 'success');
       } else {
-        this.log(`Failed to post news: ${response.error}`, 'error');
+        this.log(`Failed to post news: ${response.error || 'No success field in response'}`, 'error');
       }
 
     } catch (error) {
@@ -263,6 +270,27 @@ class ElizaNewsAgent {
       req.end();
     });
   }
+
+  async findAvailablePort(startPort) {
+    const net = require('net');
+    return new Promise((resolve, reject) => {
+      const tempServer = net.createServer();
+      tempServer.listen(startPort, () => {
+        const port = tempServer.address().port;
+        tempServer.close(() => {
+          resolve(port);
+        });
+      });
+      tempServer.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          this.log(`Port ${startPort} is in use, trying ${startPort + 1}`);
+          this.findAvailablePort(startPort + 1).then(resolve).catch(reject);
+        } else {
+          reject(err);
+        }
+      });
+    });
+  }
 }
 
 // Start the agent if run directly
@@ -288,13 +316,19 @@ if (require.main === module) {
     res.end('ElizaOS News Agent is running\n');
   });
 
-  const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  const startPort = process.env.PORT || 3000;
+  agent.findAvailablePort(startPort).then(availablePort => {
+    agent.log(`🔍 Found available port: ${availablePort}`);
+    server.listen(availablePort, () => {
+      console.log(`Server running on port ${availablePort}`);
+    });
 
-  agent.start().catch(error => {
-    console.error('Failed to start ElizaOS News Agent:', error);
+    agent.start().catch(error => {
+      console.error('Failed to start ElizaOS News Agent:', error);
+      process.exit(1);
+    });
+  }).catch(error => {
+    agent.log(`Failed to find available port starting from ${startPort}: ${error.message}`, 'error');
     process.exit(1);
   });
 }
