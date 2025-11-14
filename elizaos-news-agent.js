@@ -15,7 +15,7 @@ const http = require('http');
 
 // Configuration
 const API_BASE_URL = process.env.SUI_TIMES_API_URL || 'http://localhost:3000';
-const NEWS_API_ENDPOINT = `${API_BASE_URL}/api/news/live`;
+const NEWS_API_ENDPOINT = `${API_BASE_URL.replace(/\/$/, '')}/api/news/live`;
 
 // Twitter API Configuration (you'll need to provide these)
 const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN;
@@ -69,11 +69,11 @@ class ElizaNewsAgent {
       // Check Twitter for Sui news
       await this.checkTwitterNews();
 
-      // NEW: Check CoinGecko for market news
-      await this.checkCoinGeckoNews();
-
       // NEW: Check NewsAPI for cryptocurrency news
       await this.checkNewsAPI();
+
+      // TODO: Re-enable CoinGecko when API is stable
+      // await this.checkCoinGeckoNews();
 
       // Check other sources (add more as needed)
       await this.checkAdditionalSources();
@@ -145,8 +145,21 @@ class ElizaNewsAgent {
 
   async checkCoinGeckoNews() {
     try {
-      const response = await this.makeRequest('https://api.coingecko.com/api/v3/news');
-      const suiNews = response.data.filter(item =>
+      const response = await fetch('https://api.coingecko.com/api/v3/news', {
+        headers: {
+          'User-Agent': 'ElizaOS-News-Agent/1.0'
+        }
+      });
+      const data = await response.json();
+      console.log('CoinGecko response:', JSON.stringify(data, null, 2));
+      const newsData = data.data || data;
+
+      if (!Array.isArray(newsData)) {
+        this.log('Unexpected CoinGecko response format', 'error');
+        return;
+      }
+
+      const suiNews = newsData.filter(item =>
         item.title?.toLowerCase().includes('sui') ||
         item.description?.toLowerCase().includes('sui') ||
         item.title?.toLowerCase().includes('mysten')
@@ -164,7 +177,7 @@ class ElizaNewsAgent {
         this.log(`📈 Posted CoinGecko news: ${item.title}`, 'success');
       }
     } catch (error) {
-      this.log(`❌ CoinGecko fetch error: ${error.message}`, 'error');
+      this.log(`❌ CoinGecko fetch error: ${error.message || error}`, 'error');
     }
   }
 
@@ -172,10 +185,11 @@ class ElizaNewsAgent {
     try {
       const NEWSAPI_KEY = process.env.NEWSAPI_KEY || '49b55a0bb8e741b5918352b20a6c373f';
       const url = `https://newsapi.org/v2/everything?q=sui+blockchain+OR+mysten+labs&apiKey=${NEWSAPI_KEY}&pageSize=3`;
-      const response = await this.makeRequest(url);
+      const response = await fetch(url);
+      const data = await response.json();
 
-      if (response.articles) {
-        for (const article of response.articles.slice(0, 2)) {
+      if (data.articles) {
+        for (const article of data.articles.slice(0, 2)) {
           const newsItem = {
             title: article.title,
             category: 'news',
